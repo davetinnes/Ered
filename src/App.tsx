@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
+import synth from './Sound/DungeonSynth';
+import { SpriteManager } from './SpriteManager';
 
 type Direction = 'N' | 'E' | 'S' | 'W';
 type GameState = 'DUNGEON' | 'COMBAT' | 'GAMEOVER' | 'VICTORY';
@@ -40,6 +42,7 @@ const PROJECTION: ProjectionFrame[] = [
   { L: 115, R: 285, T: 85,  B: 215 }, 
   { L: 150, R: 250, T: 110, B: 190 }  
 ];
+
 
 const ENEMY_POOL: Record<number, Enemy[]> = {
   1: [
@@ -85,13 +88,13 @@ function generateProceduralFloor(): number[][] {
   }
 
   const deadEnds: [number, number][] = [];
-  for (let y = 1; y < MAP_SIZE - 1; y += 2) {
-    for (let x = 1; x < MAP_SIZE - 1; x += 2) {
+  for (let y = 1; y < MAP_SIZE - 1; y++) {
+    for (let x = 1; x < MAP_SIZE - 1; x++) {
       if (map[y][x] !== 0) continue;
       let count = 0;
-      for (const [dx, dy] of [[2,0],[-2,0],[0,2],[0,-2]]) {
+      for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
         const nx = x + dx, ny = y + dy;
-        if (nx >= 1 && nx < MAP_SIZE - 1 && ny >= 1 && ny < MAP_SIZE - 1 && map[ny][nx] !== 1) count++;
+        if (nx >= 0 && nx < MAP_SIZE && ny >= 0 && ny < MAP_SIZE && map[ny][nx] !== 1) count++;
       }
       if (count === 1) deadEnds.push([x, y]);
     }
@@ -161,6 +164,11 @@ export default function App() {
   const [atStairs, setAtStairs] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const handleMoveRef = useRef<(type: 'L' | 'R' | 'F' | 'B') => void>(() => {});
+
+  useEffect(() => {
+    synth.start();
+    return () => synth.stop();
+  }, []);
 
   useEffect(() => {
     if (gameState === 'DUNGEON' && map.length === 0) {
@@ -326,13 +334,19 @@ export default function App() {
     }
 
     if (gameState === 'COMBAT' && enemy) {
-      ctx.strokeStyle = "#ff3333";
-      ctx.beginPath();
-      ctx.arc(200, 150, 40, 0, Math.PI * 2);
-      ctx.moveTo(170, 130); ctx.lineTo(185, 130);
-      ctx.moveTo(215, 130); ctx.lineTo(230, 130);
-      ctx.moveTo(180, 170); ctx.lineTo(220, 170);
-      ctx.stroke();
+      const sprite = SpriteManager.getSprite(enemy.name);
+      const spriteSize = 120;
+      const spriteX = (VIEW_W - spriteSize) / 2;
+      const spriteY = (VIEW_H - spriteSize) / 2 - 10;
+
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+      ctx.fillStyle = '#223322';
+      ctx.fillRect(spriteX - 8, spriteY + 72, spriteSize + 16, 28);
+      ctx.fillStyle = '#33ff33';
+      ctx.fillRect(spriteX + 12, spriteY + 74, spriteSize - 24, 4);
+
+      SpriteManager.drawSprite(ctx, spriteX, spriteY, spriteSize, sprite);
     }
   };
 
